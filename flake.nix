@@ -27,6 +27,12 @@
         inherit (pkgs) lib;
 
         craneLib = crane.lib.${system};
+
+	stdout-sink-src = craneLib.cleanCargoSource (pkgs.fetchCrate {
+		pname = "stdout-sink";
+		version = "0.3.1";
+		hash = "sha256-2ST/7NBh/a5qVEjDGkjUolwvOt8HTdVI0U3mihYs+LE=";
+		});
         src = craneLib.cleanCargoSource ./.;
 
         # Common arguments can be set here to avoid repeating them later
@@ -47,6 +53,16 @@
         # Build *just* the cargo dependencies, so we can reuse
         # all of that work (e.g. via cachix) when running in CI
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+	# Build the stdout-sink crate
+	stdout-sink = craneLib.buildPackage {
+		nativeBuildInputs = with pkgs; [
+			zeromq
+			pkg-config
+			];
+		src = stdout-sink-src;
+		doCheck = false; # disable tests because they are not isolated
+		};
 
         # Build the actual crate itself, reusing the dependency
         # artifacts from above.
@@ -111,6 +127,11 @@
 
           # Additional dev-shell environment variables can be set directly
           # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
+
+	  # Extra inputs
+	  buildInputs = [
+	  	stdout-sink
+		];
 
           # Extra inputs can be added here
           nativeBuildInputs = with pkgs; [

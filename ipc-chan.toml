@@ -1,0 +1,5 @@
+# This file configures the ZeroMQ sockets used by stdout-sink and
+# zmtp-RS demo binnary
+
+host = "127.0.0.1"
+port = 10045
