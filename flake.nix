@@ -120,6 +120,7 @@
 
         apps.default = flake-utils.lib.mkApp {
           drv = zmtp-rs;
+	  name = "stdin-source";
         };
 
         devShells.default = pkgs.mkShell {
