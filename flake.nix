@@ -19,7 +19,7 @@
 
   nixConfig = {
     substituters = [
-      "https://francois-caddet.cachix.org/"
+      "https://francois-caddet.cachix.org"
       "https://cache.nixos.org/"
     ];
     trusted-public-keys = [
