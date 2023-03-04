@@ -1,5 +1,5 @@
 {
-  description = "Build a cargo project";
+  description = "A pure rust ZMTP implementation";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
