@@ -28,7 +28,7 @@ jobs:
     - name: Setup Cachix
       uses: cachix/cachix-action@v12
       with:
-        name: francois-caddet
+        name: "francois-caddet"
         authToken: '${{ secrets.ZMYP_RS_CACHIX_AUTHN }}'
 
     - name: Run all checks
