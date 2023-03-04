@@ -17,6 +17,15 @@
     };
   };
 
+  nixConfig = {
+    substituters = [
+      "https://francois-caddet.cachix.org"
+    ];
+    trusted-public-keys = [
+      "francois-caddet.cachix.org-1:WYf/RzhEA7GWBOo623fwh9LqXyOQrrZVide6P15GlmQ="
+    ];
+  };
+
   outputs = { self, nixpkgs, crane, flake-utils, advisory-db, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -28,11 +37,11 @@
 
         craneLib = crane.lib.${system};
 
-	stdout-sink-src = craneLib.cleanCargoSource (pkgs.fetchCrate {
-		pname = "stdout-sink";
-		version = "0.3.1";
-		hash = "sha256-2ST/7NBh/a5qVEjDGkjUolwvOt8HTdVI0U3mihYs+LE=";
-		});
+        stdout-sink-src = craneLib.cleanCargoSource (pkgs.fetchCrate {
+          pname = "stdout-sink";
+          version = "0.3.1";
+          hash = "sha256-2ST/7NBh/a5qVEjDGkjUolwvOt8HTdVI0U3mihYs+LE=";
+        });
         src = craneLib.cleanCargoSource ./.;
 
         # Common arguments can be set here to avoid repeating them later
@@ -54,15 +63,15 @@
         # all of that work (e.g. via cachix) when running in CI
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-	# Build the stdout-sink crate
-	stdout-sink = craneLib.buildPackage {
-		nativeBuildInputs = with pkgs; [
-			zeromq
-			pkg-config
-			];
-		src = stdout-sink-src;
-		doCheck = false; # disable tests because they are not isolated
-		};
+        # Build the stdout-sink crate
+        stdout-sink = craneLib.buildPackage {
+          nativeBuildInputs = with pkgs; [
+            zeromq
+            pkg-config
+          ];
+          src = stdout-sink-src;
+          doCheck = false; # disable tests because they are not isolated
+        };
 
         # Build the actual crate itself, reusing the dependency
         # artifacts from above.
@@ -120,7 +129,7 @@
 
         apps.default = flake-utils.lib.mkApp {
           drv = zmtp-rs;
-	  name = "stdin-source";
+          name = "stdin-source";
         };
 
         devShells.default = pkgs.mkShell {
@@ -129,10 +138,10 @@
           # Additional dev-shell environment variables can be set directly
           # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
 
-	  # Extra inputs
-	  buildInputs = [
-	  	stdout-sink
-		];
+          # Extra inputs
+          buildInputs = [
+            stdout-sink
+          ];
 
           # Extra inputs can be added here
           nativeBuildInputs = with pkgs; [
