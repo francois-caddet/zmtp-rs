@@ -41,7 +41,7 @@ jobs:
       uses: cachix/cachix-action@v12
       with:
         name: "francois-caddet"
-        authToken: '${{ secrets.ZMYP_RS_CACHIX_AUTHN }}'
+        authToken: '${{ secrets.ZMTP_RS_CACHIX_AUTH }}'
 
     - name: Run all checks
       run: |
