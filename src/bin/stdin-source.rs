@@ -1,5 +1,6 @@
 use tokio::main;
 use twelf::{config, Layer};
+use zmtp::sockets;
 
 #[config]
 struct Conf {
@@ -21,5 +22,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Layer::Clap(app.get_matches()),
     ])?;
     println!("Connecting to tcp://{}:{}...", config.host, config.port);
+    sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
     Ok(())
 }
