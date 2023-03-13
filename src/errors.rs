@@ -18,6 +18,18 @@ pub enum ConnectionError {
     /// Couldn't connect to the (host, port)
     #[error("cann't connect to tcp://{0}:{1}")]
     UnaccessibleHost(String, u16),
+    /// The remote ZMTP version is not compatible with the local version.
+    /// As specified by ZMTP protocol, this could appen only when the remote is of a lower version.
+    /// Right now, this crate does not provide any back compatibility mechanism.
+    #[error("remote version incompatibility")]
+    VersionMismatch(),
+    /// The remote ZMTP mechanism is not compatible with the required one.
+    /// Right now, this crate provide only NULL auth mechanism.
+    #[error("remote authentification mechanism incompatibility")]
+    MechanismMismatch(),
+    /// Socket IO error.
+    #[error("I/O {0}")]
+    IOError(#[from] std::io::Error),
 }
 
 #[derive(Error, Debug)]
