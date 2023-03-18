@@ -153,17 +153,23 @@ impl Greeting {
     }
 }
 
+impl Default for Greeting {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub(crate) trait Packet: Sized {
     fn as_bytes(&self) -> &[u8];
     fn from_bytes(buf: &[u8]) -> &Self;
 }
 
 impl Packet for Greeting {
-    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+    fn as_bytes(&self) -> &[u8] {
         unsafe { ::core::slice::from_raw_parts((self as *const Self) as *const u8, 64) }
     }
 
-    fn from_bytes<'a>(buf: &'a [u8]) -> &'a Self {
+    fn from_bytes(buf: &[u8]) -> &Self {
         let (head, body, _tail) = unsafe { buf.align_to::<Self>() };
         assert!(head.is_empty(), "Data was not aligned");
         &body[0]

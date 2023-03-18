@@ -2,7 +2,7 @@
 use crate::packets::null;
 use crate::Result;
 
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{StreamExt, TryFutureExt};
 
 /// The base ZMTP socket.
 ///
@@ -45,7 +45,7 @@ impl Zmtp {
 mod states {
     use crate::errors::ConnectionError;
     use crate::packets::{null, Flags, Greeting, Packet};
-    use async_stream::stream;
+
     use futures::{Stream, TryFutureExt};
     use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
@@ -55,7 +55,7 @@ mod states {
         pub async fn connect(host: &str, port: u16) -> Result<Connected, ConnectionError> {
             TcpStream::connect((host, port))
                 .map_ok(Connected)
-                .map_err(|_| ConnectionError::UnaccessibleHost(host.to_string(), port).into())
+                .map_err(|_| ConnectionError::UnaccessibleHost(host.to_string(), port))
                 .await
         }
     }

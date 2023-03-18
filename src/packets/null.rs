@@ -1,4 +1,4 @@
-use super::zmtp::{Flags, RawFrame};
+use super::zmtp::RawFrame;
 
 #[derive(Debug)]
 pub enum Command {
@@ -35,9 +35,7 @@ impl TryFrom<RawFrame> for Frame {
                             let key = &tail[pos..pos + size];
                             pos += size;
                             let mut raw_size: [u8; 4] = [0u8; 4];
-                            for i in 0..4 {
-                                raw_size[i] = tail[pos + i];
-                            }
+                            raw_size[..4].copy_from_slice(&tail[pos..pos + 4]);
                             let size = u32::from_be_bytes(raw_size) as usize;
                             println!("{}", size);
                             pos += 4;
