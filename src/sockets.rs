@@ -1,15 +1,13 @@
 //! Zmtp provided sockets (base, plain password, curve)
-use crate::packets::{Greeting, Packet};
-use crate::{errors::ConnectionError, Result};
+use crate::packets::null;
+use crate::Result;
 
-use futures::TryFutureExt;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use futures::{Stream, StreamExt, TryFutureExt};
 
 /// The base ZMTP socket.
 ///
 /// Does not provide any authentication/encryption security.
-pub struct Zmtp(states::AgreedMechanism);
+pub struct Zmtp(states::FrameStream);
 
 impl Zmtp {
     /// Connect to `tcp://host:port`.
@@ -30,7 +28,7 @@ impl Zmtp {
         states::Root::connect(host, port)
             .and_then(|c| c.version(3, 0))
             .and_then(|c| c.mechanism(crate::packets::Mechanism::NULL))
-            .map_ok(Self)
+            .map_ok(|c| Self(c.frame_stream()))
             .err_into()
             .await
     }
@@ -38,12 +36,17 @@ impl Zmtp {
     pub fn version(&self) -> crate::packets::Version {
         crate::packets::Version { major: 3, minor: 0 }
     }
+
+    pub async fn next_frame(&mut self) -> Option<null::Frame> {
+        self.0.next().await
+    }
 }
 
 mod states {
     use crate::errors::ConnectionError;
-    use crate::packets::{Greeting, Packet};
-    use futures::{FutureExt, TryFutureExt};
+    use crate::packets::{null, Flags, Greeting, Packet};
+    use async_stream::stream;
+    use futures::{Stream, TryFutureExt};
     use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
@@ -59,7 +62,7 @@ mod states {
 
     pub struct Connected(TcpStream);
     impl Connected {
-        pub async fn version(mut self, major: u8, minor: u8) -> Result<Versioned, ConnectionError> {
+        pub async fn version(self, major: u8, minor: u8) -> Result<Versioned, ConnectionError> {
             if (major, minor) != (3u8, 0u8) {
                 return Err(ConnectionError::VersionMismatch());
             }
@@ -98,7 +101,7 @@ mod states {
                     reader.read_exact(&mut remote_m).await?;
                     if m == Mechanism(remote_m) {
                         reader
-                            .read_exact(&mut [0u8; 31])
+                            .read_exact(&mut [0u8; 32])
                             .map_ok(|_| ())
                             .err_into()
                             .await
@@ -112,5 +115,45 @@ mod states {
         }
     }
 
+    use tokio_util::io::ReaderStream;
     pub struct AgreedMechanism(TcpStream);
+    impl AgreedMechanism {
+        pub fn frame_stream(self) -> FrameStream {
+            FrameStream(self.0, false)
+        }
+    }
+
+    pub struct FrameStream(TcpStream, bool);
+    impl Stream for FrameStream {
+        type Item = null::Frame;
+        fn poll_next(
+            self: core::pin::Pin<&mut Self>,
+            cx: &mut futures::task::Context,
+        ) -> futures::task::Poll<Option<Self::Item>> {
+            use crate::packets::FrameType;
+            use futures::Future;
+            let s = async {
+                if self.1 {
+                    return None;
+                }
+                let mut mut_self = self.get_mut();
+                let flags = Flags(mut_self.0.read_u8().await.unwrap());
+                mut_self.1 = !flags.is_last();
+                let raw_frame = if flags.is_big() {
+                    let size = mut_self.0.read_u64().await.unwrap();
+                    FrameType { flags, size }
+                        .with_stream(ReaderStream::new(&mut mut_self.0))
+                        .await
+                } else {
+                    let size = mut_self.0.read_u8().await.unwrap();
+                    FrameType { flags, size }
+                        .with_stream(ReaderStream::new(&mut mut_self.0))
+                        .await
+                };
+                Some(raw_frame.try_into().unwrap())
+            };
+            futures::pin_mut!(s);
+            s.poll(cx)
+        }
+    }
 }

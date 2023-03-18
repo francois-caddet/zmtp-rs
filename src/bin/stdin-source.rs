@@ -22,7 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Layer::Clap(app.get_matches()),
     ])?;
     println!("Connecting to tcp://{}:{}...", config.host, config.port);
-    let s = sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
+    let mut s = sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
     println!("{:?}", s.version());
+    println!("{:?}", s.next_frame().await);
     Ok(())
 }

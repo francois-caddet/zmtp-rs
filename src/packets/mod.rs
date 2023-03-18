@@ -1,2 +1,4 @@
 mod zmtp;
-pub use zmtp::*;
+pub use self::zmtp::*;
+
+pub mod null;

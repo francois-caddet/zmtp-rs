@@ -1,3 +1,5 @@
+use bytes::Bytes;
+
 #[repr(C, packed)]
 #[derive(Debug)]
 pub struct Greeting {
@@ -33,16 +35,53 @@ impl Mechanism {
     pub const NULL: Self = Self(zerro_padded(br#"NULL"#));
 }
 
-#[derive(Debug)]
-pub struct Frame<'a> {
-    flag: u8,
-    size: u64,
-    body: &'a [u8],
+#[repr(C, packed)]
+pub struct FrameType<S: FrameSize> {
+    pub flags: Flags,
+    pub size: S,
 }
 
-struct Flag(u8);
+impl<T> FrameType<T>
+where
+    T: FrameSize + Copy,
+{
+    pub async fn with_stream<S: futures::Stream<Item = Result<Bytes, std::io::Error>>>(
+        self,
+        bytes: S,
+    ) -> RawFrame {
+        use futures::{pin_mut, StreamExt};
+        pin_mut!(bytes);
+        let mut buf: Vec<u8> = Vec::new();
+        while let Some(chunk) = bytes.next().await {
+            buf.extend(chunk.unwrap());
+            println!("{:02X?}", buf);
+            if buf.len() == self.size.into() as usize {
+                break;
+            }
+        }
+        if self.flags.is_command() {
+            RawFrame::Command(buf)
+        } else {
+            RawFrame::Message(buf)
+        }
+    }
+}
 
-impl Flag {
+pub trait FrameSize: Into<u64> + Sized {}
+
+impl FrameSize for u8 {}
+impl FrameSize for u64 {}
+
+pub enum RawFrame {
+    Command(Vec<u8>),
+    Message(Vec<u8>),
+}
+
+#[repr(C, packed)]
+#[derive(Debug)]
+pub struct Flags(pub u8);
+
+impl Flags {
     const TYPE_MASK: Self = Self(0b00000100);
     const SIZE_MASK: Self = Self(0b00000010);
     const LAST: Self = Self(0b00000001);
@@ -85,11 +124,11 @@ impl Flag {
         self.0 & Self::TYPE_MASK.0 == 0
     }
 
-    pub fn is_big(self) -> bool {
+    pub fn is_big(&self) -> bool {
         self.0 & Self::SIZE_MASK.0 > 0
     }
 
-    pub fn is_last(self) -> bool {
+    pub fn is_last(&self) -> bool {
         self.0 & Self::LAST.0 > 0
     }
 }
