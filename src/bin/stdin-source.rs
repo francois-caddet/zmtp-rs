@@ -1,3 +1,4 @@
+use serde_json::to_vec;
 use tokio::main;
 use twelf::{config, Layer};
 use zmtp::sockets;
@@ -24,6 +25,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Connecting to tcp://{}:{}...", config.host, config.port);
     let mut s = sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
     println!("{:?}", s.version());
+    println!("{:?}", s.next_frame().await);
+    s.send_frame(
+        zmtp::packets::null::Command::Ready {
+            socket_type: Vec::from(&b"REQ"[..]),
+            identity: Some(Vec::from(&b"fcaddet"[..])),
+        }
+        .into(),
+    )
+    .await?;
+    s.send_frame(zmtp::packets::null::Frame::Empty).await?;
+    let msg = to_vec(&String::from("Hi!")).unwrap();
+    s.send_frame(msg.into()).await?;
     println!("{:?}", s.next_frame().await);
     Ok(())
 }

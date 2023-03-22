@@ -52,10 +52,12 @@ where
         use futures::{pin_mut, StreamExt};
         pin_mut!(bytes);
         let mut buf: Vec<u8> = Vec::new();
-        while let Some(chunk) = bytes.next().await {
-            buf.extend(chunk.unwrap());
-            println!("{:02X?}", buf);
-            if buf.len() == self.size.into() as usize {
+        println!("{:02X?}", self.as_bytes());
+        while buf.len() < self.size.into() as usize {
+            if let Some(chunk) = bytes.next().await {
+                buf.extend(chunk.unwrap());
+                println!("{:02X?}", buf);
+            } else {
                 break;
             }
         }
@@ -78,7 +80,7 @@ pub enum RawFrame {
 }
 
 #[repr(C, packed)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Flags(pub u8);
 
 impl Flags {
@@ -106,12 +108,12 @@ impl Flags {
         Self(self.0 & 0b00000101)
     }
 
-    pub fn last(self) -> Self {
+    pub fn more(self) -> Self {
         // set bit 0 to 1 and keep the 2 others value
         Self(self.0 | 0b00000001)
     }
 
-    pub fn frame_remaining(self) -> Self {
+    pub fn last(self) -> Self {
         // set bit 0 to 0 and keep the 2 others value
         Self(self.0 & 0b00000110)
     }
@@ -128,8 +130,16 @@ impl Flags {
         self.0 & Self::SIZE_MASK.0 > 0
     }
 
-    pub fn is_last(&self) -> bool {
+    pub fn is_small(&self) -> bool {
+        self.0 & Self::SIZE_MASK.0 == 0
+    }
+
+    pub fn is_more(&self) -> bool {
         self.0 & Self::LAST.0 > 0
+    }
+
+    pub fn is_last(&self) -> bool {
+        self.0 & Self::LAST.0 == 0
     }
 }
 
@@ -167,6 +177,23 @@ pub(crate) trait Packet: Sized {
 impl Packet for Greeting {
     fn as_bytes(&self) -> &[u8] {
         unsafe { ::core::slice::from_raw_parts((self as *const Self) as *const u8, 64) }
+    }
+
+    fn from_bytes(buf: &[u8]) -> &Self {
+        let (head, body, _tail) = unsafe { buf.align_to::<Self>() };
+        assert!(head.is_empty(), "Data was not aligned");
+        &body[0]
+    }
+}
+
+impl<T: FrameSize> Packet for FrameType<T> {
+    fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            ::core::slice::from_raw_parts(
+                (self as *const Self) as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
     }
 
     fn from_bytes(buf: &[u8]) -> &Self {

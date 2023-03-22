@@ -40,6 +40,10 @@ impl Zmtp {
     pub async fn next_frame(&mut self) -> Option<null::Frame> {
         self.0.next().await
     }
+
+    pub async fn send_frame(&mut self, frame: null::Frame) -> crate::Result<()> {
+        self.0.send(frame).err_into().await
+    }
 }
 
 mod states {
@@ -124,6 +128,15 @@ mod states {
     }
 
     pub struct FrameStream(TcpStream, bool);
+    impl FrameStream {
+        pub async fn send(
+            &mut self,
+            frame: null::Frame,
+        ) -> Result<(), crate::errors::ConnectionError> {
+            self.0.write_all(&frame.to_vec_u8()).await?;
+            self.0.flush().err_into().await
+        }
+    }
     impl Stream for FrameStream {
         type Item = null::Frame;
         fn poll_next(
@@ -133,12 +146,13 @@ mod states {
             use crate::packets::FrameType;
             use futures::Future;
             let s = async {
-                if self.1 {
-                    return None;
-                }
-                let mut mut_self = self.get_mut();
+                //    if self.1 {
+                //        return None;
+                //    }
+                let mut_self = self.get_mut();
                 let flags = Flags(mut_self.0.read_u8().await.unwrap());
-                mut_self.1 = !flags.is_last();
+                println!("recv flags: {:02X?}", flags);
+                //    mut_self.1 = flags.is_last();
                 let raw_frame = if flags.is_big() {
                     let size = mut_self.0.read_u64().await.unwrap();
                     FrameType { flags, size }

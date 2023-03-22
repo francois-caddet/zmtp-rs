@@ -12,6 +12,72 @@ pub enum Command {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Frame {
     Command(Command),
+    Message(Vec<u8>),
+    Empty,
+}
+
+impl Frame {
+    pub fn to_vec_u8(&self) -> Vec<u8> {
+        use super::{Flags, FrameType, Packet};
+        match self {
+            Frame::Command(f) => {
+                let f_data = f.to_vec_u8();
+                let f_len = f_data.len();
+                let flags = Flags::default().command();
+                let mut buf = if f_len < 256 {
+                    Vec::from(
+                        FrameType {
+                            flags,
+                            size: f_len as u8,
+                        }
+                        .as_bytes(),
+                    )
+                } else {
+                    let flags = flags.big();
+                    Vec::from(
+                        FrameType {
+                            flags,
+                            size: f_len as u64,
+                        }
+                        .as_bytes(),
+                    )
+                };
+                println!("{:02X?}", buf);
+                buf.extend(f_data);
+                buf
+            }
+            Frame::Message(f) => {
+                let f_data = f;
+                let f_len = f_data.len();
+                let flags = Flags::default().message();
+                let mut buf = if f_len < 256 {
+                    Vec::from(
+                        FrameType {
+                            flags,
+                            size: f_len as u8,
+                        }
+                        .as_bytes(),
+                    )
+                } else {
+                    let flags = flags.big();
+                    Vec::from(
+                        FrameType {
+                            flags,
+                            size: f_len as u64,
+                        }
+                        .as_bytes(),
+                    )
+                };
+                println!("{:02X?}", buf);
+                buf.extend(f_data);
+                buf
+            }
+            Frame::Empty => {
+                let flags = Flags::default().more();
+                Vec::from(FrameType { flags, size: 0u8 }.as_bytes())
+            }
+        }
+    }
 }
 
 impl TryFrom<RawFrame> for Frame {
@@ -61,7 +127,13 @@ impl TryFrom<RawFrame> for Frame {
                 };
                 Frame::Command(command)
             }
-            RawFrame::Message(_) => todo!(),
+            RawFrame::Message(msg) => {
+                if msg.is_empty() {
+                    Frame::Empty
+                } else {
+                    Frame::Message(msg)
+                }
+            }
         })
     }
 }
@@ -93,6 +165,21 @@ impl Command {
             }
             Command::Error(_msg) => todo!(),
         }
+    }
+}
+
+impl From<Command> for Frame {
+    fn from(cmd: Command) -> Self {
+        Frame::Command(cmd)
+    }
+}
+
+impl<Message> From<Message> for Frame
+where
+    Message: Into<Vec<u8>>,
+{
+    fn from(msg: Message) -> Self {
+        Frame::Message(msg.into())
     }
 }
 
