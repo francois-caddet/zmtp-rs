@@ -13,7 +13,7 @@ pub enum Command {
 pub enum Frame {
     Command(Command),
     Message(Vec<u8>),
-    Empty,
+    Separator,
 }
 
 impl Frame {
@@ -72,7 +72,7 @@ impl Frame {
                 buf.extend(f_data);
                 buf
             }
-            Frame::Empty => {
+            Frame::Separator => {
                 let flags = Flags::default().more();
                 Vec::from(FrameType { flags, size: 0u8 }.as_bytes())
             }
@@ -129,7 +129,7 @@ impl TryFrom<RawFrame> for Frame {
             }
             RawFrame::Message(msg) => {
                 if msg.is_empty() {
-                    Frame::Empty
+                    Frame::Separator
                 } else {
                     Frame::Message(msg)
                 }

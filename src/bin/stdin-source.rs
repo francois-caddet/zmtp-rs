@@ -29,12 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     s.send_frame(
         zmtp::packets::null::Command::Ready {
             socket_type: Vec::from(&b"REQ"[..]),
-            identity: Some(Vec::from(&b"fcaddet"[..])),
+            identity: None,
         }
         .into(),
     )
     .await?;
-    s.send_frame(zmtp::packets::null::Frame::Empty).await?;
+    s.send_frame(zmtp::packets::null::Frame::Separator).await?;
     let msg = to_vec(&String::from("Hi!")).unwrap();
     s.send_frame(msg.into()).await?;
     println!("{:?}", s.next_frame().await);
