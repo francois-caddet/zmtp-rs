@@ -6,7 +6,9 @@ use futures::{FutureExt, StreamExt, TryFutureExt};
 
 /// The base ZMTP socket.
 ///
-/// Does not provide any authentication/encryption security.
+/// It use the ZMQ REQ comunication protocol.
+/// The authentication mechanism is NULL which does not provide any
+/// encryption/security mechanism.
 pub struct Zmtp(states::FrameStream);
 
 impl Zmtp {
@@ -33,10 +35,15 @@ impl Zmtp {
             .await
     }
 
+    /// Return the used version of ZMTP.
+    ///
+    /// Currently always return `3.0` because this crate does not provide back compatibility.
     pub fn version(&self) -> crate::packets::Version {
         crate::packets::Version { major: 3, minor: 0 }
     }
 
+    /// Send a frame.
+    /// In the REQ protocol, it wait for a response which is returned by this function.
     pub async fn send_frame(&mut self, frame: null::Frame) -> crate::Result<null::Frame> {
         self.0.send(null::Frame::Separator).await?;
         self.0.send(frame).await?;
