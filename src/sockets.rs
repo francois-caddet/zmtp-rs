@@ -2,7 +2,7 @@
 use crate::packets::null;
 use crate::Result;
 
-use futures::{StreamExt, TryFutureExt};
+use futures::{FutureExt, StreamExt, TryFutureExt};
 
 /// The base ZMTP socket.
 ///
@@ -28,7 +28,7 @@ impl Zmtp {
         states::Root::connect(host, port)
             .and_then(|c| c.version(3, 0))
             .and_then(|c| c.mechanism(crate::packets::Mechanism::NULL))
-            .map_ok(|c| Self(c.frame_stream()))
+            .and_then(|c| c.ready())
             .err_into()
             .await
     }
@@ -37,12 +37,23 @@ impl Zmtp {
         crate::packets::Version { major: 3, minor: 0 }
     }
 
-    pub async fn next_frame(&mut self) -> Option<null::Frame> {
-        self.0.next().await
-    }
-
-    pub async fn send_frame(&mut self, frame: null::Frame) -> crate::Result<()> {
-        self.0.send(frame).err_into().await
+    pub async fn send_frame(&mut self, frame: null::Frame) -> crate::Result<null::Frame> {
+        self.0.send(null::Frame::Separator).await?;
+        self.0.send(frame).await?;
+        if self.0.next().await.unwrap() == null::Frame::Separator {
+            self.0
+                .next()
+                .map(|msg| {
+                    msg.ok_or(crate::errors::ConnectionError::from(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        "Remote doesn't answer to the request",
+                    )))
+                })
+                .err_into()
+                .await
+        } else {
+            todo!()
+        }
     }
 }
 
@@ -122,8 +133,20 @@ mod states {
     use tokio_util::io::ReaderStream;
     pub struct AgreedMechanism(TcpStream);
     impl AgreedMechanism {
-        pub fn frame_stream(self) -> FrameStream {
-            FrameStream(self.0, false)
+        pub async fn ready(self) -> Result<super::Zmtp, ConnectionError> {
+            use futures::StreamExt;
+            let mut frame_stream = FrameStream(self.0, false);
+            println!("{:?}", frame_stream.next().await);
+            frame_stream
+                .send(
+                    null::Command::Ready {
+                        socket_type: Vec::from(&b"REQ"[..]),
+                        identity: None,
+                    }
+                    .into(),
+                )
+                .await?;
+            Ok(super::Zmtp(frame_stream))
         }
     }
 
@@ -151,7 +174,6 @@ mod states {
                 //    }
                 let mut_self = self.get_mut();
                 let flags = Flags(mut_self.0.read_u8().await.unwrap());
-                println!("recv flags: {:02X?}", flags);
                 //    mut_self.1 = flags.is_last();
                 let raw_frame = if flags.is_big() {
                     let size = mut_self.0.read_u64().await.unwrap();

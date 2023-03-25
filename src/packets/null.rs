@@ -42,7 +42,6 @@ impl Frame {
                         .as_bytes(),
                     )
                 };
-                println!("{:02X?}", buf);
                 buf.extend(f_data);
                 buf
             }
@@ -68,7 +67,6 @@ impl Frame {
                         .as_bytes(),
                     )
                 };
-                println!("{:02X?}", buf);
                 buf.extend(f_data);
                 buf
             }
@@ -103,11 +101,9 @@ impl TryFrom<RawFrame> for Frame {
                             let mut raw_size: [u8; 4] = [0u8; 4];
                             raw_size[..4].copy_from_slice(&tail[pos..pos + 4]);
                             let size = u32::from_be_bytes(raw_size) as usize;
-                            println!("{}", size);
                             pos += 4;
                             let val = Vec::from(&tail[pos..pos + size]);
                             pos += size;
-                            println!("{}", String::from_utf8(key.into()).unwrap());
                             match key {
                                 br#"Socket-Type"# => socket_type = Some(val),
                                 br#"Identity"# => identity = Some(val),

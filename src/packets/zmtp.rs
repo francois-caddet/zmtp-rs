@@ -52,11 +52,9 @@ where
         use futures::{pin_mut, StreamExt};
         pin_mut!(bytes);
         let mut buf: Vec<u8> = Vec::new();
-        println!("{:02X?}", self.as_bytes());
         while buf.len() < self.size.into() as usize {
             if let Some(chunk) = bytes.next().await {
                 buf.extend(chunk.unwrap());
-                println!("{:02X?}", buf);
             } else {
                 break;
             }
