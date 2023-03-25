@@ -1,3 +1,5 @@
+use futures::TryFutureExt;
+use serde_json::{from_slice, to_vec};
 use tokio::main;
 use twelf::{config, Layer};
 use zmtp::sockets;
@@ -22,6 +24,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Layer::Clap(app.get_matches()),
     ])?;
     println!("Connecting to tcp://{}:{}...", config.host, config.port);
-    sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
-    Ok(())
+    let mut s = sockets::Zmtp::connect(config.host.as_str(), config.port).await?;
+    println!("{:?}", s.version());
+    let msg = to_vec(&String::from("Hi!")).unwrap();
+    s.send_frame(msg.into())
+        .map_ok(|msg| {
+            if let zmtp::packets::null::Frame::Message(msg) = msg {
+                println!("REP: {}", from_slice::<String>(&msg).unwrap())
+            }
+        })
+        .err_into()
+        .await
 }
