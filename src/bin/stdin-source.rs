@@ -31,8 +31,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_ok(|msg| {
             if let zmtp::packets::null::Frame::Message(msg) = msg {
                 println!("REP: {}", from_slice::<String>(&msg).unwrap())
-            } else {
-                ()
             }
         })
         .err_into()
