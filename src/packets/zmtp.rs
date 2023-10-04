@@ -11,7 +11,7 @@ pub struct Greeting {
 }
 
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Version {
     pub major: u8,
     pub minor: u8,
@@ -28,7 +28,7 @@ const fn zerro_padded<const M: usize, const N: usize>(arr: &[u8; M]) -> [u8; N] 
 }
 
 #[repr(C, packed)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Mechanism(pub [u8; 20]);
 
 impl Mechanism {

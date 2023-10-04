@@ -18,10 +18,10 @@
   };
 
   nixConfig = {
-    substituters = [
+    extra-substituters = [
       "https://francois-caddet.cachix.org"
     ];
-    trusted-public-keys = [
+    extra-trusted-public-keys = [
       "francois-caddet.cachix.org-1:WYf/RzhEA7GWBOo623fwh9LqXyOQrrZVide6P15GlmQ="
     ];
   };
